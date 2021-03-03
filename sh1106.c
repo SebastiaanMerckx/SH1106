@@ -1,6 +1,11 @@
 #include <sh1106.h>
 #include <string.h>
 
+#if SH1106_I2C == 1
+extern I2C_HandleTypeDef hi2c1; //example
+I2C_HandleTypeDef* sh1106_i2c_handler = &hi2c1;
+#endif
+
 // Screen dimensions
 uint16_t scr_width  = SCR_W;
 uint16_t scr_height = SCR_H;
@@ -26,6 +31,7 @@ static const uint8_t LUT_LB[] = { 0x00, 0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F
 // Send single byte command to display
 // input:
 //   cmd - display command
+#if SH1106_SPI == 1
 static void SH1106_cmd(uint8_t cmd) {
 	// Deassert DC pin -> command transmit
 	SH1106_DC_L();
@@ -34,11 +40,22 @@ static void SH1106_cmd(uint8_t cmd) {
 	uint8_t command = cmd;
 	HAL_SPI_Transmit ( &SH1106_SPI_PORT,  &command, 1, 20) ;
 }
+#endif
+#if SH1106_I2C == 1
+static void SH1106_cmd(uint8_t cmd) {
+	// Send command to display
+	uint8_t command[2];
+	command[0] = 0b00<<6;
+	command[1] = cmd;
+	HAL_I2C_Master_Transmit(sh1106_i2c_handler, SH1106_I2C_ADDRESS, command, sizeof(command), 20);
+}
+#endif
 
 // Send double byte command to display
 // input:
 //   cmd1 - first byte of double-byte command
 //   cmd2 - second byte of double-byte command
+#if SH1106_SPI == 1
 static void SH1106_cmd_double(uint8_t cmd1, uint8_t cmd2) {
 	// Deassert DC pin -> command transmit
 	SH1106_DC_L();
@@ -50,6 +67,18 @@ static void SH1106_cmd_double(uint8_t cmd1, uint8_t cmd2) {
 	HAL_SPI_Transmit ( &SH1106_SPI_PORT,  command, 2, 20) ;
 
 }
+#endif
+#if SH1106_I2C == 1
+static void SH1106_cmd_double(uint8_t cmd1, uint8_t cmd2) {
+	// Send double byte command to display
+	uint8_t command[4];
+	command[0] = 0b10<<6;
+	command[1] = cmd1;
+	command[2] = 0b00<<6;
+	command[3] = cmd2;
+	HAL_I2C_Master_Transmit(sh1106_i2c_handler, SH1106_I2C_ADDRESS, command, sizeof(command), 20);
+}
+#endif
 
 /*
 // Send data byte to display
@@ -257,7 +286,7 @@ void SH1106_Orientation(uint8_t orientation) {
 
 
 // Send vRAM buffer into display
-
+#if SH1106_SPI == 1
 void SH1106_Flush(void) {
 
 	SH1106_CS_L();
@@ -289,6 +318,33 @@ void SH1106_Flush(void) {
 
 	SH1106_CS_H();
 }
+#endif
+
+#if SH1106_I2C == 1
+void SH1106_Flush(void) {
+
+	const uint32_t bits_h = SCR_H >> 3;
+	uint8_t command[6];
+	command[0] = 0b10<<6;
+	command[1] = SH1106_CMD_COL_LOW | 0x02;
+	command[2] = 0b10<<6;
+	command[3] = SH1106_CMD_COL_HIGH;
+	command[4] = 0b00<<6;
+
+	uint8_t buf[SCR_W+1] = {0};
+
+	for (register uint32_t page = 0; page < bits_h; ++page)
+	{
+		command[5] = SH1106_CMD_PAGE_ADDR | page;
+		HAL_I2C_Master_Transmit(sh1106_i2c_handler, SH1106_I2C_ADDRESS, command, sizeof(command), 20);
+
+		buf[0] = 0b01<<6; //send data bytes
+		memcpy(&buf[1], &vRAM[page * SCR_W], SCR_W);
+		HAL_I2C_Master_Transmit(sh1106_i2c_handler, SH1106_I2C_ADDRESS, buf, sizeof(buf), 20);
+	}
+}
+#endif
+
 
 // Fill vRAM memory with specified pattern
 // input:

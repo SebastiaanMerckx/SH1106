@@ -9,6 +9,7 @@
 //   PC6  --> DC
 //   PB13 --> CLK
 //   PB15 --> MOSI
+//   I2C  --> undefined
 
 
 // Use bit-banding to draw pixel
@@ -29,11 +30,13 @@
 
 // SH1106 HAL
 
+#define SH1106_SPI			0
+#define SH1106_I2C			1
+
+#if SH1106_SPI == 1
+
 // SPI port
 #define SH1106_SPI_PORT      hspi2
-
-// GPIO peripherals
-#define SH1106_GPIO_PERIPH   (RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN)
 
 // SH1106 RS/A0 (Data/Command select) pin (PC6)
 #define SH1106_DC_PORT       GPIOC
@@ -41,17 +44,32 @@
 #define SH1106_DC_H()        HAL_GPIO_WritePin(SH1106_DC_PORT, SH1106_DC_PIN,GPIO_PIN_SET)
 #define SH1106_DC_L()        HAL_GPIO_WritePin(SH1106_DC_PORT, SH1106_DC_PIN,GPIO_PIN_RESET)
 
-// SH1106 RST (Reset) pin (PB14)
-#define SH1106_RST_PORT      GPIOB
-#define SH1106_RST_PIN       GPIO_PIN_14
-#define SH1106_RST_H()       HAL_GPIO_WritePin(SH1106_RST_PORT, SH1106_RST_PIN,GPIO_PIN_SET)
-#define SH1106_RST_L()       HAL_GPIO_WritePin(SH1106_RST_PORT, SH1106_RST_PIN,GPIO_PIN_RESET)
-
 // SH1106 CS (Chip Select) pin (PB12)
 #define SH1106_CS_PORT       GPIOB
 #define SH1106_CS_PIN        GPIO_PIN_12
 #define SH1106_CS_H()        HAL_GPIO_WritePin(SH1106_CS_PORT, SH1106_CS_PIN,GPIO_PIN_SET)
 #define SH1106_CS_L()        HAL_GPIO_WritePin(SH1106_CS_PORT, SH1106_CS_PIN,GPIO_PIN_RESET)
+
+extern SPI_HandleTypeDef SH1106_SPI_PORT;
+
+#endif
+
+#if SH1106_I2C == 1
+
+#define SH1106_I2C_ADDRESS 		(60 << 1)
+
+#define SH1106_CS_H()
+#define SH1106_CS_L()
+#endif
+
+// GPIO peripherals
+#define SH1106_GPIO_PERIPH   (RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN)
+
+// SH1106 RST (Reset) pin (PB14)
+#define SH1106_RST_PORT      GPIOB
+#define SH1106_RST_PIN       GPIO_PIN_14
+#define SH1106_RST_H()       HAL_GPIO_WritePin(SH1106_RST_PORT, SH1106_RST_PIN,GPIO_PIN_SET)
+#define SH1106_RST_L()       HAL_GPIO_WritePin(SH1106_RST_PORT, SH1106_RST_PIN,GPIO_PIN_RESET)
 
 
 // Screen dimensions
@@ -165,8 +183,6 @@ typedef struct {
 extern uint16_t scr_width;
 extern uint16_t scr_height;
 extern uint8_t LCD_PixelMode;
-
-extern SPI_HandleTypeDef SH1106_SPI_PORT;
 
 // Function prototypes
 //void SH1106_InitGPIO(void);
